@@ -1,0 +1,42 @@
+# ---------------------------------------------------------------------------
+# .gitignore
+# Entries are grouped by category and arranged alphabetically within each group.
+# ---------------------------------------------------------------------------
+
+# Data and model artifacts
+*.h5
+*.joblib
+*.keras
+*.npy
+*.parquet
+data/
+models/
+
+# Environments
+.env
+.venv/
+env/
+venv/
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+ipython_config.py
+profile_default/
+
+# Operating system and editor files
+.DS_Store
+.idea/
+.vscode/
+Thumbs.db
+
+# Planning and local documentation
+CLAUDE.md
+planning/
+
+# Python
+*.egg-info/
+*.py[cod]
+.pytest_cache/
+__pycache__/
+build/
+dist/
