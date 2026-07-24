@@ -18,13 +18,11 @@
 ## Changes
 
 <!-- Bullet the key changes in this pull request. -->
-
 -
 
 ## How this was tested
 
 <!-- Which notebook(s) were run top to bottom? Which outputs or metrics were checked? -->
-
 -
 
 ## Checklist
