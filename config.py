@@ -4,8 +4,8 @@
 from pathlib import Path
 
 # Third-party
-import numpy
-import pandas
+import numpy as np
+import pandas as pd
 from sklearn.model_selection import train_test_split
 
 # Seed used everywhere so results are reproducible
@@ -95,8 +95,8 @@ def load_device(device_directory, device_name):
     # Read each file and attach its label as three new columns
     for csv_path in sorted(device_directory.rglob("*.csv")):
         label, attack_subtype = label_from_path(csv_path)
-        frame = pandas.read_csv(csv_path)
-        meta_columns = pandas.DataFrame(
+        frame = pd.read_csv(csv_path)
+        meta_columns = pd.DataFrame(
             {
                 "device": device_name,
                 "label": label,
@@ -104,10 +104,10 @@ def load_device(device_directory, device_name):
             },
             index=frame.index,
         )
-        frames.append(pandas.concat([frame, meta_columns], axis=1))
+        frames.append(pd.concat([frame, meta_columns], axis=1))
 
     # Stack every labelled file into one table for this device
-    return pandas.concat(frames, ignore_index=True)
+    return pd.concat(frames, ignore_index=True)
 
 
 def feature_columns(dataframe):
@@ -135,7 +135,7 @@ def subsample_device(dataframe, attack_cap=ATTACK_CAP, seed=RANDOM_SEED):
     ]
 
     # Combine the untouched benign rows with the capped attack rows
-    return pandas.concat([benign_rows] + capped_groups, ignore_index=True)
+    return pd.concat([benign_rows] + capped_groups, ignore_index=True)
 
 
 def split_benign_only(device_dataframe, seed=RANDOM_SEED):
@@ -158,7 +158,7 @@ def split_benign_only(device_dataframe, seed=RANDOM_SEED):
     )
 
     # Attack rows only ever appear in the test split
-    test = pandas.concat([benign_test, attack_rows], ignore_index=True)
+    test = pd.concat([benign_test, attack_rows], ignore_index=True)
     return train.reset_index(drop=True), val.reset_index(drop=True), test
 
 
@@ -181,7 +181,7 @@ def balance_rows_per_device(
         group.sample(n=per_device, random_state=seed)
         for _, group in grouped
     ]
-    return pandas.concat(balanced_groups, ignore_index=True)
+    return pd.concat(balanced_groups, ignore_index=True)
 
 
 def prune_correlated_columns(
@@ -225,4 +225,4 @@ def save_arrays(device, **arrays):
     device_directory = Path(PROCESSED_DIRECTORY) / device
     device_directory.mkdir(parents=True, exist_ok=True)
     for name, array in arrays.items():
-        numpy.save(device_directory / f"{name}.npy", array)
+        np.save(device_directory / f"{name}.npy", array)
