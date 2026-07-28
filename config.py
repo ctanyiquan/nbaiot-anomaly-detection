@@ -4,7 +4,9 @@
 from pathlib import Path
 
 # Third-party
+import numpy
 import pandas
+from sklearn.model_selection import train_test_split
 
 # Seed used everywhere so results are reproducible
 RANDOM_SEED = 42
@@ -28,9 +30,11 @@ CHOSEN_DEVICES = [
     # discuss the thin baseline in Findings.
 ]
 
-# Cap benign rows per device when building the pooled training set
-# only, so no single device dominates the shared baseline. Per-device
-# models use all their own benign data.
+# Per-device ceiling when balancing the pooled training and
+# validation sets: every device contributes the same number of rows
+# (the smallest contributing device's count), capped here only if
+# that smallest count is unexpectedly large. Per-device models use
+# all their own benign data.
 POOLED_BENIGN_CAP = 50_000
 
 # For the optional full-coverage summary run
@@ -132,3 +136,93 @@ def subsample_device(dataframe, attack_cap=ATTACK_CAP, seed=RANDOM_SEED):
 
     # Combine the untouched benign rows with the capped attack rows
     return pandas.concat([benign_rows] + capped_groups, ignore_index=True)
+
+
+def split_benign_only(device_dataframe, seed=RANDOM_SEED):
+    """Benign-only train/validation/test split for one device.
+
+    Splits the benign rows 70/15/15 into train, validation, and
+    test. Every attack row is appended to the test split only, so
+    train and validation never contain an attack row. Returns
+    (train, val, test) dataframes.
+    """
+    benign_rows = device_dataframe[device_dataframe["label"] == "benign"]
+    attack_rows = device_dataframe[device_dataframe["label"] != "benign"]
+
+    # Split off train first, then split the remainder into val and test
+    train, remainder = train_test_split(
+        benign_rows, train_size=0.7, random_state=seed
+    )
+    val, benign_test = train_test_split(
+        remainder, train_size=0.5, random_state=seed
+    )
+
+    # Attack rows only ever appear in the test split
+    test = pandas.concat([benign_test, attack_rows], ignore_index=True)
+    return train.reset_index(drop=True), val.reset_index(drop=True), test
+
+
+def balance_rows_per_device(
+    dataframe, ceiling=POOLED_BENIGN_CAP, seed=RANDOM_SEED
+):
+    """Sample an equal number of rows from every device.
+
+    Each device contributes the same number of rows to a pooled
+    split: the smallest device's group size, capped at ceiling.
+    Sampling is without replacement and reproducible via seed, so
+    no single device dominates the pooled set regardless of how
+    much benign data it happens to have.
+    """
+    grouped = dataframe.groupby("device")
+    per_device = min(grouped.size().min(), ceiling)
+
+    # Take the same number of rows from each device
+    balanced_groups = [
+        group.sample(n=per_device, random_state=seed)
+        for _, group in grouped
+    ]
+    return pandas.concat(balanced_groups, ignore_index=True)
+
+
+def prune_correlated_columns(
+    dataframe, columns, threshold=CORRELATION_THRESHOLD
+):
+    """List columns to keep after dropping correlated duplicates.
+
+    Computes the Pearson correlation matrix of the given columns.
+    Of each pair correlated above threshold, the lower-variance
+    column is dropped, so the more spread-out feature survives.
+    Returns the surviving column names, in their original order.
+    Callers should pass unscaled data, so variance is meaningful,
+    and should exclude constant columns beforehand.
+    """
+    correlation_matrix = dataframe[columns].corr().abs()
+    variance = dataframe[columns].var()
+    ordered_by_variance = variance.sort_values(ascending=False).index
+
+    # Go through list of columns from highest to lowest variance and
+    # keep a column unless it is too correlated with a higher variance
+    # column that is already kept
+    kept_columns = set()
+    for column in ordered_by_variance:
+        too_correlated = any(
+            correlation_matrix.loc[column, kept] > threshold
+            for kept in kept_columns
+        )
+        if not too_correlated:
+            kept_columns.add(column)
+
+    return [column for column in columns if column in kept_columns]
+
+
+def save_arrays(device, **arrays):
+    """Save one or more named arrays to a device's processed folder.
+
+    Writes each keyword array to
+    data/processed/<device>/<name>.npy, creating the folder first
+    if it does not already exist.
+    """
+    device_directory = Path(PROCESSED_DIRECTORY) / device
+    device_directory.mkdir(parents=True, exist_ok=True)
+    for name, array in arrays.items():
+        numpy.save(device_directory / f"{name}.npy", array)
