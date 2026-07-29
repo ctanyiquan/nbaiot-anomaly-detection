@@ -68,6 +68,25 @@ AUTOENCODER_THRESHOLD_Z = 3
 # Alarm threshold = mean + Z * std of benign validation distance
 KMEANS_THRESHOLD_Z = 3
 
+# Sweep k over this range when choosing the number of K-Means clusters
+KMEANS_K_RANGE = range(2, 11)
+
+# Row sample used for the K-Means silhouette score. Full pairwise
+# silhouette is O(n^2); infeasible at Philips' ~115,600 training rows
+SILHOUETTE_SAMPLE_SIZE = 5_000
+
+# DBSCAN's min_samples = this many times the number of PCA dimensions
+DBSCAN_MIN_SAMPLES_MULTIPLIER = 2
+
+# Default DBSCAN eps = this percentile of the k-distance curve
+DBSCAN_EPS_PERCENTILE = 95
+
+# Hand-picked eps per entry, filled in after visually inspecting the
+# saved k-distance plot. Empty until an elbow clearly sits elsewhere.
+# Keyed by device name or "_pooled"; falls back to the automatic
+# percentile default when an entry has no override.
+DBSCAN_EPS_OVERRIDES = {}
+
 # Meta columns describe a row but are never fed to a model
 META_COLUMNS = ["device", "label", "attack_subtype"]
 
@@ -226,3 +245,16 @@ def save_arrays(device, **arrays):
     device_directory.mkdir(parents=True, exist_ok=True)
     for name, array in arrays.items():
         np.save(device_directory / f"{name}.npy", array)
+
+
+def load_arrays(device, *names):
+    """Load one or more named arrays from a device's processed folder.
+
+    Reads each named array from
+    data/processed/<device>/<name>.npy and returns them in a dict
+    keyed by name, the mirror of save_arrays.
+    """
+    device_directory = Path(PROCESSED_DIRECTORY) / device
+    return {
+        name: np.load(device_directory / f"{name}.npy") for name in names
+    }
