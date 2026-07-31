@@ -65,6 +65,24 @@ PCA_VARIANCE = 0.95
 # Alarm threshold = mean + Z * std of benign validation error
 AUTOENCODER_THRESHOLD_Z = 3
 
+# Encoder layer widths as a share of input width; decoder mirrors
+# back out
+AUTOENCODER_LAYER_RATIOS = [0.75, 0.50, 0.33, 0.25]
+
+# EarlyStopping patience (epochs with no val_loss improvement)
+AUTOENCODER_EARLY_STOPPING_PATIENCE = 5
+
+# Epoch cap; EarlyStopping is expected to stop well before this
+AUTOENCODER_EPOCHS = 100
+
+# Rows per gradient update during training
+AUTOENCODER_BATCH_SIZE = 128
+
+# Rows per forward pass when scoring; larger than the training
+# batch because no gradients are held, and the pooled test set is
+# large
+AUTOENCODER_SCORING_BATCH_SIZE = 1024
+
 # Alarm threshold = mean + Z * std of benign validation distance
 KMEANS_THRESHOLD_Z = 3
 
